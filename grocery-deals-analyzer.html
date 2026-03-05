@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeatMarket — Weekly Deal Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8c547;
+    --accent2: #e07b39;
+    --text: #f0ece3;
+    --text-muted: #7a7670;
+    --text-dim: #4a4640;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .logo-area h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .logo-area h1 span { color: var(--accent); }
+
+  .logo-area p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 5px;
+  }
+
+  .zip-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent);
+    background: rgba(232, 197, 71, 0.08);
+    border: 1px solid rgba(232, 197, 71, 0.25);
+    padding: 7px 14px;
+    letter-spacing: 0.1em;
+  }
+
+  .nav-bar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .nav-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+  }
+
+  .tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .search-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .search-bar-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .search-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .search-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.66rem;
+    padding: 5px 13px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: all 0.15s ease;
+  }
+
+  .chip:hover { border-color: var(--accent2); color: var(--accent2); }
+  .chip.active { border-color: var(--accent2); color: var(--accent2); background: rgba(224,123,57,0.07); }
+
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+    min-height: 0;
+  }
+
+  .panel { display: none; flex: 1; flex-direction: column; min-height: 0; }
+  .panel.active { display: flex; }
+
+  .flipp-frame {
+    flex: 1;
+    width: 100%;
+    min-height: calc(100vh - 240px);
+    border: none;
+    background: #fff;
+    display: block;
+  }
+
+  /* STORE LINKS */
+  .inner-panel {
+    padding: 32px;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+    overflow-y: auto;
+  }
+
+  .panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .panel-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .store-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .store-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232,197,71,0.05);
+  }
+
+  /* TIPS */
+  .tip-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .tip-icon { font-size: 1.3rem; flex-shrink: 0; padding-top: 2px; }
+
+  .tip-body h3 {
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .tip-body p {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+
+  .tip-body a { color: var(--accent); text-decoration: none; }
+  .tip-body a:hover { text-decoration: underline; }
+
+  footer {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    padding: 12px 32px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg);
+    position: relative;
+    z-index: 10;
+  }
+
+  .footer-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  @media (max-width: 600px) {
+    header, .nav-inner, .search-bar, footer { padding-left: 16px; padding-right: 16px; }
+    .inner-panel { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-area">
+      <h1>Meat<span>Market</span></h1>
+      <p>Weekly Deal Scanner — Plano, TX</p>
+    </div>
+    <div class="zip-badge">📍 ZIP 75025</div>
+  </div>
+</header>
+
+<div class="nav-bar">
+  <div class="nav-inner">
+    <button class="tab active" onclick="showPanel('flipp', this)">🥩 Weekly Ads</button>
+    <button class="tab" onclick="showPanel('stores', this)">🏪 Store Links</button>
+    <button class="tab" onclick="showPanel('tips', this)">💡 Deal Tips</button>
+  </div>
+</div>
+
+<div class="search-bar" id="searchBar">
+  <div class="search-bar-inner">
+    <span class="search-label">Search</span>
+    <div class="search-chips">
+      <button class="chip active" onclick="loadFlipp('meat', this)">🥩 All Meat</button>
+      <button class="chip" onclick="loadFlipp('chicken', this)">🍗 Chicken</button>
+      <button class="chip" onclick="loadFlipp('beef', this)">🥩 Beef</button>
+      <button class="chip" onclick="loadFlipp('pork', this)">🥓 Pork</button>
+      <button class="chip" onclick="loadFlipp('seafood', this)">🦐 Seafood</button>
+      <button class="chip" onclick="loadFlipp('shrimp', this)">🦐 Shrimp</button>
+      <button class="chip" onclick="loadFlipp('salmon', this)">🐟 Salmon</button>
+      <button class="chip" onclick="loadFlipp('steak', this)">🥩 Steak</button>
+      <button class="chip" onclick="loadFlipp('ribs', this)">🍖 Ribs</button>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- WEEKLY ADS PANEL -->
+  <div class="panel active" id="panel-flipp">
+    <iframe
+      id="flippFrame"
+      class="flipp-frame"
+      src="https://flipp.com/search/meat?postal_code=75025"
+      title="Flipp Weekly Ads"
+      allow="geolocation"
+      loading="lazy">
+    </iframe>
+  </div>
+
+  <!-- STORE LINKS PANEL -->
+  <div class="panel" id="panel-stores">
+    <div class="inner-panel">
+      <div class="panel-title">Store Weekly Ads</div>
+      <p class="panel-sub">Direct links to each store's weekly ad page. All have locations near Plano TX 75025.</p>
+      <div class="store-grid">
+        <a class="store-link" href="https://www.heb.com/weekly-ad" target="_blank"><span>H-E-B</span><span>↗</span></a>
+        <a class="store-link" href="https://www.kroger.com/savings/cl/specials" target="_blank"><span>Kroger</span><span>↗</span></a>
+        <a class="store-link" href="https://www.tomthumb.com/savings/weekly-ad" target="_blank"><span>Tom Thumb</span><span>↗</span></a>
+        <a class="store-link" href="https://www.walmart.com/store/5441-plano-tx" target="_blank"><span>Walmart Plano</span><span>↗</span></a>
+        <a class="store-link" href="https://www.sprouts.com/weekly-ad" target="_blank"><span>Sprouts</span><span>↗</span></a>
+        <a class="store-link" href="https://www.aldi.us/en/weekly-specials" target="_blank"><span>ALDI</span><span>↗</span></a>
+        <a class="store-link" href="https://www.marketstreetunited.com/weekly-specials" target="_blank"><span>Market Street</span><span>↗</span></a>
+        <a class="store-link" href="https://www.centralmarket.com/weekly-specials" target="_blank"><span>Central Market</span><span>↗</span></a>
+        <a class="store-link" href="https://www.wholefoodsmarket.com/sales-flyer" target="_blank"><span>Whole Foods</span><span>↗</span></a>
+        <a class="store-link" href="https://flipp.com/flyers?postal_code=75025" target="_blank"><span>All Stores on Flipp</span><span>↗</span></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS PANEL -->
+  <div class="panel" id="panel-tips">
+    <div class="inner-panel">
+      <div class="panel-title">Meat & Seafood Deal Tips</div>
+
+      <div class="tip-card">
+        <div class="tip-icon">📅</div>
+        <div class="tip-body">
+          <h3>When do weekly ads reset?</h3>
+          <p>Most Plano-area stores reset on <strong>Wednesday</strong> — Kroger, Tom Thumb, H-E-B, Sprouts, and ALDI all run Wednesday–Tuesday cycles. Walmart has no set schedule for rollback pricing.</p>
+        </div>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">🛍️</div>
+        <div class="tip-body">
+          <h3>Best days to shop</h3>
+          <p>Shop <strong>Wednesday or Thursday</strong> for the freshest selection at new sale prices. <strong>Sunday evening</strong> often has manager's specials — deep markdowns on meat near its sell-by date.</p>
+        </div>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">💲</div>
+        <div class="tip-body">
+          <h3>Good price benchmarks (Plano area)</h3>
+          <p>Chicken breast under $2.99/lb · Ground beef 80/20 under $3.99/lb · Pork shoulder under $1.99/lb · Shrimp large frozen under $6.99/lb · Salmon fillet under $7.99/lb · Baby back ribs under $3.99/lb</p>
+        </div>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">📱</div>
+        <div class="tip-body">
+          <h3>Stack your savings</h3>
+          <p>At <strong>Kroger and Tom Thumb</strong>, digital coupons in the app stack on top of weekly sale prices — load them before you shop. <strong>H-E-B</strong> digital deals also combine with weekly ad prices for the best total discount.</p>
+        </div>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">🏆</div>
+        <div class="tip-body">
+          <h3>Best stores for meat value near 75025</h3>
+          <p><strong>H-E-B</strong> — consistently best everyday prices and weekly deals · <strong>ALDI</strong> — cheapest chicken and pork most weeks · <strong>Kroger</strong> — best when stacking digital coupons · <strong>Central Market</strong> — best quality/specialty cuts</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span>Powered by Flipp · Weekly ads near 75025 Plano, TX</span>
+    <span>Prices subject to change · Verify at store before purchase</span>
+  </div>
+</footer>
+
+<script>
+function showPanel(name, tabEl) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  tabEl.classList.add('active');
+  // Only show search bar on flipp panel
+  document.getElementById('searchBar').style.display = name === 'flipp' ? 'block' : 'none';
+}
+
+function loadFlipp(query, chipEl) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  document.getElementById('flippFrame').src = `https://flipp.com/search/${encodeURIComponent(query)}?postal_code=75025`;
+}
+</script>
+</body>
+</html>
